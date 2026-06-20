@@ -56,14 +56,14 @@ int render_line(tvi_t *tvi, win_t *win, size_t index) {
 	int line_y = win->y + y;
 	if (index >= (size_t)win->lines_count) {
 		term_clear_line(line_y);
-		term_print_at(line_x, line_y, 0, "~");
+		term_print_at(line_x, line_y, TERM_ATTR_FG_BLUE, "~");
 		return 0;
 	}
 	char *line = win->text[index];
 	size_t line_height = get_line_height(win, line);
 	if (y + line_height > (size_t)win->height - 1) {
 		term_clear_line(line_y);
-		term_print_at(line_x, line_y, 0, "@@@");
+		term_print_at(line_x, line_y, TERM_ATTR_FG_BLUE, "@@@");
 	} else {
 		// TODO : bring back syntax
 		// clear multiple lines if needed

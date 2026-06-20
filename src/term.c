@@ -27,6 +27,10 @@ static int cursor_y;
 
 static const char *codes[TERM_CODES_COUNT] = {
 	[TERM_GOTO]           = ESC"[%d;%df",
+	[TERM_COLOR_RESET]    = ESC"[0m",
+	[TERM_COLOR_INVERSE]  = ESC"[7m",
+	[TERM_COLOR_SET_FG]   = ESC"[3%dm",
+	[TERM_COLOR_SET_BG]   = ESC"[4%dm",
 	[TERM_CLEAR_END_LINE] = ESC"[K",
 	[TERM_INSERT]         = ESC"[%d@",
 	[TERM_DELETE]         = ESC"[%dP",
@@ -76,6 +80,7 @@ void term_fetch_size(void) {
 			new_buffer[i].attr = 0;
 			new_buffer[i].c = ' ';
 		}
+		term_send_code(TERM_CLEAR);
 	}
 }
 
@@ -184,7 +189,16 @@ static void print_cells(cell_t *cell, int len) {
 		if (cell->attr != attr) {
 			term_reset_color();
 			if (cell->attr & TERM_ATTR_INVERSE) {
-				term_inverse_color();
+				term_send_code(TERM_COLOR_INVERSE);
+			}
+			if (cell->attr & TERM_ATTR_BOLD) {
+				term_send_code(TERM_COLOR_BOLD);
+			}
+			if (cell->attr & TERM_ATTR_FG) {
+				term_send_code(TERM_COLOR_SET_FG, cell->attr & TERM_ATTR_FG_MASK);
+			}
+			if (cell->attr & TERM_ATTR_BG) {
+				term_send_code(TERM_COLOR_SET_BG, (cell->attr & TERM_ATTR_BG_MASK) >> TERM_ATTR_BG_SHIFT);
 			}
 			attr = cell->attr;
 		}
@@ -343,11 +357,11 @@ void term_bell(void) {
 }
 
 void term_reset_color(void) {
-	printf(ESC"[0m");
+	term_send_code(TERM_COLOR_RESET);
 }
 
 void term_inverse_color(void) {
-	printf(ESC"[0;7m");
+	term_send_code(TERM_COLOR_INVERSE);
 }
 
 void term_error_color(void) {

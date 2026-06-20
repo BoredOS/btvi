@@ -124,6 +124,7 @@ static int ex_print(tvi_t *tvi, ex_args_t *args) {
 			print(tvi, "%s\n", content);
 		}
 	}
+	render_flush(tvi);
 	return 0;
 }
 

@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <stdarg.h>
 
 struct syntax;
 
@@ -79,7 +80,6 @@ void term_print_at(int x, int y, int attr, const char *fmt, ...);
 void term_vprint_at(int x, int y, int attr, const char *fmt, va_list args);
 void term_fetch_size(void);
 void term_reset_color(void);
-void term_inverse_color(void);
 void term_error_color(void);
 void render_text(tvi_t *tvi, win_t *win);
 int render_line(tvi_t *tvi, win_t *win, size_t index);
@@ -140,15 +140,51 @@ extern tvi_t tvi;
 #define KEY_START -6
 #define KEY_END   -7
 
-#define TERM_GOTO           0
-#define TERM_CLEAR_END_LINE 1
-#define TERM_INSERT         2
-#define TERM_DELETE         3
-#define TERM_CLEAR          4
-#define TERM_INSERT_LINE    5
-#define TERM_DELETE_LINE    6
-#define TERM_CODES_COUNT    7
+#define TERM_GOTO            0
+#define TERM_COLOR_RESET     1
+#define TERM_COLOR_INVERSE   2
+#define TERM_COLOR_BOLD      3
+#define TERM_COLOR_SET_FG    4
+#define TERM_COLOR_SET_BG    5
+#define TERM_CLEAR_END_LINE  6
+#define TERM_INSERT          7
+#define TERM_DELETE          8
+#define TERM_CLEAR           9
+#define TERM_INSERT_LINE    10
+#define TERM_DELETE_LINE    11
+#define TERM_CODES_COUNT    12
 
-#define TERM_ATTR_INVERSE   1
+#define TERM_ATTR_BLACK   0
+#define TERM_ATTR_RED     1
+#define TERM_ATTR_GREEN   2
+#define TERM_ATTR_YELLOW  3
+#define TERM_ATTR_BLUE    4
+#define TERM_ATTR_MAGENTA 5
+#define TERM_ATTR_CYAN    6
+#define TERM_ATTR_WHITE   7
+
+#define TERM_ATTR_FG            0x008
+#define TERM_ATTR_FG_MASK       0x007
+#define TERM_ATTR_FG_BLACK      TERM_ATTR_FG | TERM_ATTR_BLACK
+#define TERM_ATTR_FG_RED        TERM_ATTR_FG | TERM_ATTR_RED
+#define TERM_ATTR_FG_GREEN      TERM_ATTR_FG | TERM_ATTR_GREEN
+#define TERM_ATTR_FG_YELLOW     TERM_ATTR_FG | TERM_ATTR_YELLOW
+#define TERM_ATTR_FG_BLUE       TERM_ATTR_FG | TERM_ATTR_BLUE
+#define TERM_ATTR_FG_MAGENTA    TERM_ATTR_FG | TERM_ATTR_MAGENTA
+#define TERM_ATTR_FG_CYAN       TERM_ATTR_FG | TERM_ATTR_CYAN
+#define TERM_ATTR_FG_WHITE      TERM_ATTR_FG | TERM_ATTR_WHITE
+#define TERM_ATTR_BG            0x080
+#define TERM_ATTR_BG_MASK       0x070
+#define TERM_ATTR_BG_SHIFT          8
+#define TERM_ATTR_BG_BLACK      TERM_ATTR_BG | (TERM_ATTR_BLACK << TERM_ATTR_BG_SHIFT)
+#define TERM_ATTR_BG_RED        TERM_ATTR_BG | (TERM_ATTR_RED << TERM_ATTR_BG_SHIFT)
+#define TERM_ATTR_BG_GREEN      TERM_ATTR_BG | (TERM_ATTR_GREEN << TERM_ATTR_BG_SHIFT)
+#define TERM_ATTR_BG_YELLOW     TERM_ATTR_BG | (TERM_ATTR_YELLOW << TERM_ATTR_BG_SHIFT)
+#define TERM_ATTR_BG_BLUE       TERM_ATTR_BG | (TERM_ATTR_BLUE << TERM_ATTR_BG_SHIFT)
+#define TERM_ATTR_BG_MAGENTA    TERM_ATTR_BG | (TERM_ATTR_MAGENTA << TERM_ATTR_BG_SHIFT)
+#define TERM_ATTR_BG_CYAN       TERM_ATTR_BG | (TERM_ATTR_CYAN << TERM_ATTR_BG_SHIFT)
+#define TERM_ATTR_BG_WHITE      TERM_ATTR_BG | (TERM_ATTR_WHITE << TERM_ATTR_BG_SHIFT)
+#define TERM_ATTR_INVERSE       0x100
+#define TERM_ATTR_BOLD          0x200
 
 #endif
