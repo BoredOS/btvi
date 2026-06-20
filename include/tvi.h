@@ -45,22 +45,38 @@ typedef struct tvi {
 	reg_t alpha_regs[26];
 	reg_t digit_regs[10];
 	reg_t unamed_reg;
+	char *old_buffer;
+	char *new_buffer;
 } tvi_t;
+
+#define cell(x, y) ((x) + term_width * (y))
 
 typedef struct syntax {
 	void *handle;
 	const char *(*print_line)(const char*);
 } syntax_t;
 
+typedef struct cell {
+	int attr;
+	int c;
+} cell_t;
+
+const char *term_get_code(int code);
+size_t term_get_code_len(int code);
+void term_send_code(int code, ...);
 int term_enable_raw_mode(void);
 void term_quit_raw_mode(void);
 int term_get_key(void);
 int term_enter_fullscreen(void);
 void term_exit_fullscreen(void);
-void term_clear_line(void);
-void term_goto(int x, int y);
+void term_clear_line(int y);
 void term_bell(void);
+void term_set_cursor(int x, int y);
+void term_goto(int x, int y);
 int term_is_delete(int c);
+void term_redraw(void);
+void term_print_at(int x, int y, int attr, const char *fmt, ...);
+void term_vprint_at(int x, int y, int attr, const char *fmt, va_list args);
 void term_fetch_size(void);
 void term_reset_color(void);
 void term_inverse_color(void);
@@ -123,5 +139,16 @@ extern tvi_t tvi;
 #define KEY_LEFT  -5
 #define KEY_START -6
 #define KEY_END   -7
+
+#define TERM_GOTO           0
+#define TERM_CLEAR_END_LINE 1
+#define TERM_INSERT         2
+#define TERM_DELETE         3
+#define TERM_CLEAR          4
+#define TERM_INSERT_LINE    5
+#define TERM_DELETE_LINE    6
+#define TERM_CODES_COUNT    7
+
+#define TERM_ATTR_INVERSE   1
 
 #endif
