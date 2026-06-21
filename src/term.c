@@ -25,6 +25,9 @@ static cell_t *new_buffer;
 static int cursor_x;
 static int cursor_y;
 
+#define cell(buf, x, y) &buf[(x) + term_width * (y)]
+#define line(buf, y) cell(buf, 0, y)
+
 static const char *codes[TERM_CODES_COUNT] = {
 	[TERM_GOTO]           = ESC"[%d;%df",
 	[TERM_COLOR_RESET]    = ESC"[0m",
@@ -34,6 +37,8 @@ static const char *codes[TERM_CODES_COUNT] = {
 	[TERM_CLEAR_END_LINE] = ESC"[K",
 	[TERM_INSERT]         = ESC"[%d@",
 	[TERM_DELETE]         = ESC"[%dP",
+	[TERM_INSERT_LINE]    = ESC"[%dL",
+	[TERM_DELETE_LINE]    = ESC"[%dM",
 	[TERM_CLEAR]          = ESC"[2J",
 };
 
@@ -209,8 +214,8 @@ static void print_cells(cell_t *cell, int len) {
 }
 
 static void redraw_line(int y) {
-	cell_t *old_line = &old_buffer[cell(0, y)];
-	cell_t *new_line = &new_buffer[cell(0, y)];
+	cell_t *old_line = cell(old_buffer, 0, y);
+	cell_t *new_line = cell(new_buffer, 0, y);
 	int diff_start = 0;
 	while (diff_start < term_width) {
 		if (!cell_equal(&old_line[diff_start], &new_line[diff_start])) {
@@ -289,14 +294,62 @@ static void redraw_line(int y) {
 		term_send_code(TERM_DELETE, old_len - new_len);
 		print_cells(&new_line[diff_start], diff_end - diff_start);
 	}
+	memcpy(old_line, new_line, term_width * sizeof(cell_t));
+}
+
+static void redraw_lines(int y, int count) {
+	for (int i=0; i<count; i++) {
+		redraw_line(y + i);
+	}
+}
+
+static int line_equal(cell_t *a, cell_t *b) {
+	for (int i=0; i<term_width; i++) {
+		if (!cell_equal(&a[i], &b[i])) {
+			return 0;
+		}
+	}
+	return 1;
+}
+
+static void clear_lines(cell_t *lines, size_t count) {
+	for (size_t i=0; i<count*term_width; i++) {
+		lines[i].attr = 0;
+		lines[i].c    = ' ';
+	}
 }
 
 void term_redraw(void) {
-	// TODO : see if we can scroll/insert/delete lines
+	// TODO : see if we can scroll lines direcly
 	for (int y=0; y<term_height; y++) {
+		if (line_equal(line(old_buffer, y), line(new_buffer, y))) {
+			continue;
+		}
+		for (int i=1; i<5; i++) {
+			if (i + y >= term_height) break;
+			if (term_get_code(TERM_INSERT_LINE) && line_equal(line(old_buffer, y), line(new_buffer, y + i))) {
+				term_goto(0, y);
+				term_send_code(TERM_INSERT_LINE, i);
+				memmove(line(old_buffer, y + i), line(old_buffer, y), (term_height - y - i) * term_width * sizeof(cell_t));
+				clear_lines(line(old_buffer, y), i);
+
+				redraw_lines(y, i);
+				// update buffer
+				y += i - 1;
+				continue;
+			}
+			if (term_get_code(TERM_DELETE_LINE) && line_equal(line(old_buffer, y + i), line(new_buffer, y))) {
+				term_goto(0, y);
+				term_send_code(TERM_DELETE_LINE, i);
+				memmove(line(old_buffer, y), line(old_buffer, y + i), (term_height - y - i) * term_width * sizeof(cell_t));
+				clear_lines(line(old_buffer, term_height - i), i);
+
+				// update buffer
+				continue;
+			}
+		}
 		redraw_line(y);
 	}
-	memcpy(old_buffer, new_buffer, term_width * term_height * sizeof(cell_t));
 	term_goto(cursor_x, cursor_y);
 	fflush(stdout);
 }
@@ -319,7 +372,7 @@ void term_vprint_at(int x, int y, int attr, const char *fmt, va_list args) {
 			x = 0;
 			y++;
 		}
-		cell_t *cell = &new_buffer[cell(x, y)];
+		cell_t *cell = cell(new_buffer, x, y);
 		cell->c = buf[i];
 		cell->attr = attr;
 		x++;
@@ -339,7 +392,7 @@ void term_set_cursor(int x, int y) {
 }
 
 void term_clear_line(int y) {
-	cell_t *cell = &new_buffer[cell(0, y)];
+	cell_t *cell = cell(new_buffer, 0, y);
 	for (int i=0; i<term_width; i++) {
 		cell->c = ' ';
 		cell->attr = 0;
@@ -358,10 +411,6 @@ void term_bell(void) {
 
 void term_reset_color(void) {
 	term_send_code(TERM_COLOR_RESET);
-}
-
-void term_inverse_color(void) {
-	term_send_code(TERM_COLOR_INVERSE);
 }
 
 void term_error_color(void) {

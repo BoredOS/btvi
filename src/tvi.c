@@ -146,9 +146,10 @@ int insert_mode(tvi_t *tvi) {
 					continue;
 				}
 				win->cursor_x = strlen(win->text[win->cursor_y-1]);
-				text_join(win, win->cursor_y-1, win->cursor_y, 0);
 				win->cursor_y--;
+				text_join(win, win->cursor_y, win->cursor_y + 1, 0);
 				render_window(tvi, win);
+				render_status(tvi, win);
 				render_flush(tvi);
 				continue;
 			}
@@ -174,6 +175,7 @@ int insert_mode(tvi_t *tvi) {
 			} else {
 				win->cursor_x--;
 			}
+			render_status(tvi, win);
 			render_flush(tvi);
 			continue;
 		case KEY_RIGHT:
@@ -182,6 +184,7 @@ int insert_mode(tvi_t *tvi) {
 			} else {
 				win->cursor_x++;
 			}
+			render_status(tvi, win);
 			render_flush(tvi);
 			continue;
 		case KEY_UP:
@@ -190,6 +193,7 @@ int insert_mode(tvi_t *tvi) {
 			} else {
 				cursor_add_y(win, -1);
 			}
+			render_status(tvi, win);
 			render_flush(tvi);
 			continue;
 		case KEY_DOWN:
@@ -198,14 +202,17 @@ int insert_mode(tvi_t *tvi) {
 			} else {
 				cursor_add_y(win, 1);
 			}
+			render_status(tvi, win);
 			render_flush(tvi);
 			continue;
 		case KEY_START:
 			win->cursor_x = 0;
+			render_status(tvi, win);
 			render_flush(tvi);
 			continue;
 		case KEY_END:
 			win->cursor_x = strlen(win->text[win->cursor_y]);
+			render_status(tvi, win);
 			render_flush(tvi);
 			continue;
 		}
@@ -213,7 +220,7 @@ int insert_mode(tvi_t *tvi) {
 		text_insert_buf(win, win->cursor_x, win->cursor_y, &buf, 1);
 		win->cursor_x++;
 redraw:
-		render_line(tvi, win, win->cursor_y);
+		render_window(tvi, win);
 		render_status(tvi, win);
 		render_flush(tvi);
 	}

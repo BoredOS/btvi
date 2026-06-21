@@ -50,8 +50,6 @@ typedef struct tvi {
 	char *new_buffer;
 } tvi_t;
 
-#define cell(x, y) ((x) + term_width * (y))
-
 typedef struct syntax {
 	void *handle;
 	const char *(*print_line)(const char*);
