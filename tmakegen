@@ -1,0 +1,11 @@
+#!/bin/sh
+
+. ./tmake.sh
+
+tmake_init "$@"
+
+tmake_add_executable "tvi" src/*.c INCLUDEDIR="include" LDFLAGS="\$(RDYNAMIC)"
+
+tmake_add_data "manual" "share/tvi" "help.txt"
+
+tmake_fini

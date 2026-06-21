@@ -40,4 +40,6 @@ fi
 tconf_fini
 echo "RDYNAMIC=$RDYNAMIC" >> "$TOP/config.mk"
 
+./tmakegen
+
 exit 0
