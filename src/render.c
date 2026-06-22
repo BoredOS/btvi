@@ -70,7 +70,11 @@ int render_line(tvi_t *tvi, win_t *win, size_t index) {
 		for (size_t i=0; i<line_height; i++) {
 			term_clear_line(line_y+i);
 		}
-		term_print_at(line_x, line_y, 0, "%s", line);
+		if (win->syntax) {
+			syntax_print_line(win, line_y, win->syntax, line);
+		} else {
+			term_print_at(line_x, line_y, 0, "%s", line);
+		}
 	}
 	return 0;
 }

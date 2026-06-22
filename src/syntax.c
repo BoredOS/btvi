@@ -31,6 +31,6 @@ void syntax_unload(syntax_t *syntax) {
 	free(syntax->handle);
 }
 
-void syntax_print_line(syntax_t *syntax, const char *line) {
-	if (syntax && syntax->print_line) syntax->print_line(line);
+void syntax_print_line(win_t *win, int y, syntax_t *syntax, const char *line) {
+	if (syntax && syntax->print_line) syntax->print_line(win, y, line);
 }

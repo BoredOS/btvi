@@ -69,6 +69,7 @@ const char *preprocs[] = {
 
 const char *consts[] = {
 	"NULL",
+	"nullptr",
 	"EOF",
 	"SEEK_SET",
 	"SEEK_CUR",
@@ -78,6 +79,7 @@ const char *consts[] = {
 	"stderr",
 	"INT_MAX",
 	"INT_MIN",
+	"UINT_MAX",
 };
 
 #define WORD_TYPES    0
@@ -122,10 +124,16 @@ int is_word_type(const char *word, size_t len, int type) {
 		int cmp = strncmp(word, list[middle], len);
 		if (cmp == 0) {
 			if (strlen(list[middle]) == len) return 1;
-			else return 0;
+			else if (strlen(list[middle]) > len) {
+				goto before;
+			} else {
+				goto after;
+			}
 		} if (cmp > 0) {
+after:
 			start = middle + 1;
 		} else {
+before:
 			if (middle == 0) return 0;
 			end = middle - 1;
 		}
@@ -133,11 +141,11 @@ int is_word_type(const char *word, size_t len, int type) {
 	return 0;
 }
 
-const char *word_color(const char *word, size_t size) {
-	if (is_word_type(word, size, WORD_TYPES)) return "\033[32m";
-	if (is_word_type(word, size, WORD_KEYWORDS)) return "\033[33m";
-	if (is_word_type(word, size, WORD_CONSTS) || isdigit(*word)) return "\033[35m";
-	return NULL;
+int word_color(const char *word, size_t size) {
+	if (is_word_type(word, size, WORD_TYPES)) return TERM_ATTR_FG_GREEN;
+	if (is_word_type(word, size, WORD_KEYWORDS)) return TERM_ATTR_FG_YELLOW;
+	if (is_word_type(word, size, WORD_CONSTS) || isdigit(*word)) return TERM_ATTR_FG_MAGENTA;
+	return 0;
 }
 
 static int is_word_char(int c) {
@@ -156,11 +164,28 @@ static const char *skip_backslash(const char *line) {
 	return line + 1;
 }
 
-void print_line(const char *line) {
+static void put_at(win_t *win, int *x, int *y, int attr, char c) {
+	term_print_at((*x)++, *y, attr, "%c", c);
+	if (*x >= win->x + win->width) {
+		*x = 0;
+		(*y)++;
+	}
+}
+
+static void put_word(win_t *win, int *x, int *y, int attr, const char *str, int len) {
+	term_print_at(*x, *y, attr, "%.*s", len, str);
+	*x += len;
+	while (*x >= win->x + win->width) {
+		*x -= win->width;
+		(*y)++;
+	}
+}
+
+void print_line(win_t *win, int y, const char *line) {
 	// print word by word
-	int last_is_reset = 1;
+	int x = win->x;
 	while (isblank(*line)) {
-		putchar(*line);
+		put_at(win, &x, &y, 0, *line);
 		line++;
 	}
 	if (*line == '#') {
@@ -171,9 +196,8 @@ void print_line(const char *line) {
 			word_len++;
 		}
 		if (is_word_type(word, word_len, WORD_PREPROCS)) {
-			printf("\033[34m%.*s", (int)word_len, word);
+			put_word(win, &x, &y, TERM_ATTR_FG_BLUE, word, word_len);
 			line += word_len;
-			last_is_reset = 0;
 		}
 	}
 	while (!reach_line_end(line)) {
@@ -185,26 +209,23 @@ void print_line(const char *line) {
 				end = &line[2];
 			}
 			if (*end == '\'') {
-				last_is_reset = 0;
-				printf("\033[35m%.*s", (int)(end - line + 1), line);
+				put_word(win, &x, &y, TERM_ATTR_FG_MAGENTA, line, (end - line + 1));
 				line = end + 1;
 				continue;
 			} else {
-				if (!last_is_reset) term_reset_color();
-				last_is_reset = 1;
-				putchar('\'');
+				put_at(win, &x, &y, TERM_ATTR_FG_MAGENTA, '\'');
 				line++;
 				continue;
 			}
 		}
 		if (*line == '"') {
-			last_is_reset = 0;
-			printf("\033[35m");
-			putchar(*(line++));
+			put_at(win, &x, &y, TERM_ATTR_MAGENTA, *(line++));
 			while (*line != '"' && *line) {
-				putchar(*(line++));
+				put_at(win, &x, &y, TERM_ATTR_MAGENTA, *(line++));
 			}
-			putchar(*(line++));
+			if (*line == '"') {
+				put_at(win, &x, &y, TERM_ATTR_MAGENTA, *(line++));
+			}
 			continue;
 		}
 		if (!is_word_char(*line)) {
@@ -214,9 +235,7 @@ void print_line(const char *line) {
 				line++;
 				len++;
 			}
-			term_reset_color();
-			last_is_reset = 1;
-			printf("%.*s", (int)len, start);
+			put_word(win, &x, &y, 0, start, len);
 			continue;
 		}
 		// find lenght of word
@@ -226,19 +245,12 @@ void print_line(const char *line) {
 			word_len++;
 			line++;
 		}
-		const char *color = word_color(word, word_len);
-		if (color) {
-			last_is_reset = 0;
-			printf("%s", color);
-		} else {
-			if (!last_is_reset) term_reset_color();
-			last_is_reset = 1;
-		}
-		printf("%.*s", (int)word_len, word);
+		int color = word_color(word, word_len);
+		put_word(win, &x, &y, color, word, word_len);
 		continue;
 	}
 
 	if (*line) {
-		printf("\033[36m%s", line);
+		term_print_at(x, y, TERM_ATTR_FG_CYAN, "%s", line);
 	}
 }

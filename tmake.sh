@@ -1,6 +1,6 @@
 # source this in your tmakegen
 
-TMAKE_VERSION="v0.1.9"
+TMAKE_VERSION="v0.2.0"
 
 tmake_init () {
 	MAKEFILE="$(realpath ./Makefile)"
@@ -264,12 +264,12 @@ uninstall : uninstall-$TARGET_TARGET
 uninstall-$TARGET_TARGET :
 	@echo \"UNINSTALL$(TO_REMOVE=""
 	for FILE in $FILES ; do
-		TO_REMOVE="$TO_REMOVE \$(DESTDIR)\$(PREFIX)/$PREF/${FILE#"\$(BUILDDIR)/$TARGET_TARGET/"}"
+		TO_REMOVE="$TO_REMOVE \$(DESTDIR)\$(PREFIX)/$PREF/$(basename "$FILE")"
 	done
 	echo "$TO_REMOVE")\"
 	\$(Q)rm -f$(TO_REMOVE=""
 	for FILE in $FILES ; do
-		TO_REMOVE="$TO_REMOVE \"\$(DESTDIR)\$(PREFIX)/$PREF/${FILE#"\$(BUILDDIR)/$TARGET_TARGET/"}\""
+		TO_REMOVE="$TO_REMOVE \"\$(DESTDIR)\$(PREFIX)/$PREF/$(basename "$FILE")\""
 	done
 	echo "$TO_REMOVE")
 
@@ -316,7 +316,7 @@ LINK_$LIB_TARG = $LIB
 ALL_$TARG += $LIB
 LINK_$TARG = $LIB"
 	shift
-	tmake_add_target "$LIB_TARG" "$LIB" "lib" "$@"
+	tmake_add_target "$LIB_TARG" "$LIB" "$(dirname "lib/$TARG")" "$@"
 	echo "
 $LIB : $ALL_DEPENDENCIES
 	@mkdir -p \"\$(@D)\"
@@ -351,7 +351,7 @@ LINK_$LIB_TARG = $LIB
 ALL_$TARG += $LIB
 LINK_$TARG = $LIB"
 	shift
-	tmake_add_target "$LIB_TARG" "$LIB" "lib" "CFLAGS=-fPIC" "$@"
+	tmake_add_target "$LIB_TARG" "$LIB" "$(dirname "lib/$TARG")" "CFLAGS=-fPIC" "$@"
 	echo "
 $LIB : $ALL_DEPENDENCIES
 	@mkdir -p \"\$(@D)\"

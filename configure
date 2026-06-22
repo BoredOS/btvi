@@ -1,6 +1,8 @@
 #!/bin/sh
 . ./tconf.sh
 
+: ${SHARED:=no}
+
 tconf_init "$@"
 
 tconf_search_cc "$HOST"
@@ -38,7 +40,8 @@ else
 fi
 
 tconf_fini
-echo "RDYNAMIC=$RDYNAMIC" >> "$TOP/config.mk"
+tconf_echo_conf "SHARED"   "$SHARED" >> config.mk
+tconf_echo_conf "RDYNAMIC" "$RDYNAMIC" >> config.mk
 
 ./tmakegen
 

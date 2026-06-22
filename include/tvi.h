@@ -52,7 +52,7 @@ typedef struct tvi {
 
 typedef struct syntax {
 	void *handle;
-	const char *(*print_line)(const char*);
+	const char *(*print_line)(win_t *win, int y, const char*);
 } syntax_t;
 
 typedef struct cell {
@@ -104,7 +104,7 @@ int reg_put(tvi_t *tvi, win_t *win, int name, int x, int y, int after);
 int reg_put_lines(tvi_t *tvi, win_t *win, int name, int addr);
 syntax_t *syntax_load(const char *name);
 void syntax_unload(syntax_t *syntax);
-void syntax_print_line(syntax_t *syntax, const char *line);
+void syntax_print_line(win_t *win, int y, syntax_t *syntax, const char *line);
 int ex_command(tvi_t *tvi, const char *command);
 void open_files(win_t *win, char *const*files, size_t files_count);
 void read_file(win_t *win, const char *path);

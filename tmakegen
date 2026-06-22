@@ -6,6 +6,11 @@ tmake_init "$@"
 
 tmake_add_executable "tvi" src/*.c INCLUDEDIR="include" LDFLAGS="\$(RDYNAMIC)"
 
+for FILE in syntax/*.c ; do
+	NAME="${FILE%%.c}"
+	tmake_add_shared_library "tvi/${NAME##syntax/}" "$FILE" INCLUDEDIR="include"
+done
+
 tmake_add_data "manual" "share/tvi" "help.txt"
 
 tmake_fini
