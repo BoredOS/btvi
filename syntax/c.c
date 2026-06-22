@@ -158,14 +158,19 @@ static int reach_line_end(const char *line) {
 
 static const char *skip_backslash(const char *line) {
 	if (*line != '\\') return line;
-	if (line[1]) {
-		return line + 2;
+	for (int i=1; i<3; i++) {
+		if (!line[i]) {
+			return line + i;
+		}
+		if (!isdigit(line[i])) {
+			return line + i + 1;
+		}
 	}
-	return line + 1;
+	return line + 4;
 }
 
 static void put_at(win_t *win, int *x, int *y, int attr, char c) {
-	term_print_at((*x)++, *y, attr, "%c", c);
+	win_print_at(win, (*x)++, *y, attr, "%c", c);
 	if (*x >= win->x + win->width) {
 		*x = 0;
 		(*y)++;
@@ -173,7 +178,7 @@ static void put_at(win_t *win, int *x, int *y, int attr, char c) {
 }
 
 static void put_word(win_t *win, int *x, int *y, int attr, const char *str, int len) {
-	term_print_at(*x, *y, attr, "%.*s", len, str);
+	win_print_at(win, *x, *y, attr, "%.*s", len, str);
 	*x += len;
 	while (*x >= win->x + win->width) {
 		*x -= win->width;
@@ -183,7 +188,7 @@ static void put_word(win_t *win, int *x, int *y, int attr, const char *str, int 
 
 void print_line(win_t *win, int y, const char *line) {
 	// print word by word
-	int x = win->x;
+	int x = 0;
 	while (isblank(*line)) {
 		put_at(win, &x, &y, 0, *line);
 		line++;
@@ -201,30 +206,29 @@ void print_line(win_t *win, int y, const char *line) {
 		}
 	}
 	while (!reach_line_end(line)) {
-		if (*line == '\'' && line[1]) {
+		if (*line == '\'') {
+			put_at(win, &x, &y, TERM_ATTR_FG_MAGENTA, *(line++));
+			if (!*line) break;
 			const char *end;
-			if (line[1] == '\\') {
-				end = skip_backslash(&line[1]);
+			if (*line == '\\') {
+				end = skip_backslash(line);
 			} else {
-				end = &line[2];
+				end = line + 1;
 			}
+			put_word(win, &x, &y, TERM_ATTR_FG_MAGENTA, line, (int)(end - line));
+			line = end;
 			if (*end == '\'') {
-				put_word(win, &x, &y, TERM_ATTR_FG_MAGENTA, line, (end - line + 1));
-				line = end + 1;
-				continue;
-			} else {
-				put_at(win, &x, &y, TERM_ATTR_FG_MAGENTA, '\'');
-				line++;
-				continue;
+				put_at(win, &x, &y, TERM_ATTR_FG_MAGENTA, *(line++));
 			}
+			continue;
 		}
 		if (*line == '"') {
-			put_at(win, &x, &y, TERM_ATTR_MAGENTA, *(line++));
+			put_at(win, &x, &y, TERM_ATTR_FG_MAGENTA, *(line++));
 			while (*line != '"' && *line) {
-				put_at(win, &x, &y, TERM_ATTR_MAGENTA, *(line++));
+				put_at(win, &x, &y, TERM_ATTR_FG_MAGENTA, *(line++));
 			}
 			if (*line == '"') {
-				put_at(win, &x, &y, TERM_ATTR_MAGENTA, *(line++));
+				put_at(win, &x, &y, TERM_ATTR_FG_MAGENTA, *(line++));
 			}
 			continue;
 		}
@@ -251,6 +255,6 @@ void print_line(win_t *win, int y, const char *line) {
 	}
 
 	if (*line) {
-		term_print_at(x, y, TERM_ATTR_FG_CYAN, "%s", line);
+		win_print_at(win, x, y, TERM_ATTR_FG_CYAN, "%s", line);
 	}
 }

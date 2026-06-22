@@ -60,6 +60,13 @@ typedef struct cell {
 	int c;
 } cell_t;
 
+typedef struct bound {
+	int x;
+	int y;
+	int width;
+	int height;
+} bound_t;
+
 const char *term_get_code(int code);
 size_t term_get_code_len(int code);
 void term_send_code(int code, ...);
@@ -76,6 +83,7 @@ int term_is_delete(int c);
 void term_redraw(void);
 void term_print_at(int x, int y, int attr, const char *fmt, ...);
 void term_vprint_at(int x, int y, int attr, const char *fmt, va_list args);
+void term_vprint_bound_at(bound_t *bound, int x, int y, int attr, const char *fmt, va_list args);
 void term_fetch_size(void);
 void term_reset_color(void);
 void term_error_color(void);
@@ -89,6 +97,7 @@ void render_cursor(tvi_t *tvi);
 void render_flush(tvi_t *tvi);
 win_t *win_create(tvi_t *tvi);
 void win_free(tvi_t *tvi, win_t *win);
+void win_print_at(win_t *win, int x, int y, int attr, const char *fmt, ...);
 void text_insert_lines(win_t *win, int addr, char *const*lines, size_t lines_count);
 void text_insert_newline(win_t *win, int x, int y);
 void text_insert_buf(win_t *win, int x, int y, const char *buf, size_t count);

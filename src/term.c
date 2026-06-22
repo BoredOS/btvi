@@ -354,22 +354,26 @@ void term_redraw(void) {
 	fflush(stdout);
 }
 
-void term_vprint_at(int x, int y, int attr, const char *fmt, va_list args) {
+void term_vprint_bound_at(bound_t *bound, int x, int y, int attr, const char *fmt, va_list args) {
 	char buf[LINE_MAX];
 	int len = vsnprintf(buf, sizeof(buf), fmt, args);
 
+	if (bound) {
+		x += bound->x;
+		x += bound->y;
+	}
 	for (int i=0; i<len; i++) {
 		switch (buf[i]) {
 		case '\t':
 			x += 8 - (x % 8);
 			continue;
 		case '\n':
-			x = 0;
+			x = bound ? bound->x : 0;
 			y++;
 			continue;
 		}
 		if (x >= term_width) {
-			x = 0;
+			x = bound ? bound->x : 0;
 			y++;
 		}
 		cell_t *cell = cell(new_buffer, x, y);
@@ -377,6 +381,10 @@ void term_vprint_at(int x, int y, int attr, const char *fmt, va_list args) {
 		cell->attr = attr;
 		x++;
 	}
+}
+
+void term_vprint_at(int x, int y, int attr, const char *fmt, va_list args) {
+	term_vprint_bound_at(NULL, x, y, attr, fmt, args);
 }
 
 void term_print_at(int x, int y, int attr, const char *fmt, ...) {

@@ -45,6 +45,19 @@ static int get_line_y(win_t *win, int index) {
 	return y;
 }
 
+void win_print_at(win_t *win, int x, int y, int attr, const char *fmt, ...) {
+	va_list args;
+	va_start(args, fmt);
+	bound_t bound = {
+		.x = win->x,
+		.y = win->y,
+		.width  = win->width,
+		.height = win->height,
+	};
+	term_vprint_bound_at(&bound, x, y, attr, fmt, args);
+	va_end(args);
+}
+
 int render_line(tvi_t *tvi, win_t *win, size_t index) {
 	(void)tvi;
 	if (index < (size_t)win->scroll) return -1;
@@ -71,9 +84,9 @@ int render_line(tvi_t *tvi, win_t *win, size_t index) {
 			term_clear_line(line_y+i);
 		}
 		if (win->syntax) {
-			syntax_print_line(win, line_y, win->syntax, line);
+			syntax_print_line(win, y, win->syntax, line);
 		} else {
-			term_print_at(line_x, line_y, 0, "%s", line);
+			win_print_at(win, 0, y, 0, "%s", line);
 		}
 	}
 	return 0;
