@@ -8,7 +8,9 @@
 #include <unistd.h>
 #endif
 #include <stdlib.h>
+#include <string.h>
 #include <stdio.h>
+#include <limits.h>
 #ifdef HAVE_POLL_H
 #include <poll.h>
 #endif
