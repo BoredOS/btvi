@@ -24,11 +24,15 @@ tconf_check_header "$CC" dlfcn.h
 tconf_check_header "$CC" sys/ioctl.h
 
 # check functions
+tconf_check_func "$CC" "unistd.h" "read"
 tconf_check_func "$CC" "unistd.h" "isatty"
 tconf_check_func "$CC" "dlfcn.h" "dlopen"
 tconf_check_func "$CC" "dlfcn.h" "dlclose"
 tconf_check_func "$CC" "dlfcn.h" "dlsym"
 tconf_check_func "$CC" "dlfcn.h" "dlerror"
+tconf_check_func "$CC" "signal.h" "signal"
+tconf_check_func "$CC" "signal.h" "sigaction"
+tconf_check_func "$CC" "signal.h" "sigemptyset"
 
 # need -rdynamic
 if tconf_check_cc_option "$CC" "-rdynamic" ; then

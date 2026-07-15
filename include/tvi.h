@@ -4,6 +4,11 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdarg.h>
+#ifdef HAVE_SIGNAL_H
+#include <signal.h>
+#else
+typedef int sig_atomic_t;
+#endif
 
 struct syntax;
 
@@ -48,6 +53,7 @@ typedef struct tvi {
 	reg_t unamed_reg;
 	char *old_buffer;
 	char *new_buffer;
+	volatile sig_atomic_t interrupted;
 } tvi_t;
 
 typedef struct syntax {

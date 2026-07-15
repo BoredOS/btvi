@@ -14,6 +14,9 @@ int prompt(tvi_t *tvi, const char *initial, int newline) {
 
 	for (;;) {
 		int c = term_get_key();
+		if (tvi->interrupted) {
+			goto exit_prompt;
+		}
 		if (term_is_delete(c)) {
 			if (tvi->prompt_len <= strlen(initial)) {
 				// exit prompt when it become empty
@@ -31,6 +34,10 @@ int prompt(tvi_t *tvi, const char *initial, int newline) {
 			continue;
 		}
 		switch (c) {
+		case EOF:
+			goto exit_prompt;
+		case '\0':
+			continue;
 		case '\033':
 exit_prompt:
 			tvi->prompt_len = 0;
@@ -138,7 +145,10 @@ int insert_mode(tvi_t *tvi) {
 
 	for (;;) {
 		int c = term_get_key();
-		if (c == '\033') break;
+		if (tvi->interrupted || c == '\033' || c == EOF) {
+			tvi->interrupted = 0;
+			break;
+		}
 		if (term_is_delete(c)) {
 			if (win->cursor_x == 0) {
 				if (win->cursor_y <= 0) {
@@ -158,6 +168,8 @@ int insert_mode(tvi_t *tvi) {
 			goto redraw;
 		}
 		switch (c){
+		case '\0':
+			continue;
 		case '\n':
 			text_insert_newline(win, win->cursor_x, win->cursor_y);
 			win->cursor_y++;
@@ -358,6 +370,16 @@ int tvi_main(tvi_t *tvi) {
 	render_flush(tvi);
 	while (!(tvi->flags & FLAG_QUIT)) {
 		int c = term_get_key();
+		if (tvi->interrupted) {
+			print(tvi, "do :q to exit tvi");
+			render_flush(tvi);
+			tvi->interrupted = 0;
+		}
+		if (c == EOF) {
+			tvi->flags |= FLAG_QUIT;
+			continue;
+		}
+		if (!c) continue;
 		int count = 0;
 
 		if (isdigit(c) && c != '0') {
@@ -365,7 +387,11 @@ int tvi_main(tvi_t *tvi) {
 			while (isdigit(c)) {
 				count = c - '0';
 				c *= 10;
-				c = term_get_key();
+				while (!(c = term_get_key())) {
+					if (tvi->interrupted) {
+						goto restart_loop;
+					}
+				}
 			}
 		}
 
@@ -485,6 +511,7 @@ int tvi_main(tvi_t *tvi) {
 			render_flush(tvi);
 			break;
 		}
+restart_loop:;
 	}
 	term_quit_raw_mode();
 	return 0;

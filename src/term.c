@@ -133,16 +133,40 @@ int term_have_input(void) {
 #endif
 }
 
-int term_get_key(void) {
-	int c = getchar();
-	if (c != '\033') return c;
-	if (!term_have_input()) return c;
-	int c2 = getchar();
-	if (c2 != '[') {
-		ungetc(c2, stdin);
+static int unget_char = EOF;
+
+static int term_getc(void) {
+	if (unget_char != EOF) {
+		int c = unget_char;
+		unget_char = EOF;
 		return c;
 	}
-	int c3 = getchar();
+#ifdef HAVE_READ
+	static char c;
+	ssize_t ret = read(STDIN_FILENO, &c, sizeof(c));
+	if (ret < 0 && errno == EINTR) return '\0';
+	if (ret < 1) return EOF;
+	return c;
+#else
+	return getchar();
+#endif
+}
+
+static void term_ungetc(int c) {
+	if (c == EOF) return;
+	unget_char = c;
+}
+
+int term_get_key(void) {
+	int c = term_getc();
+	if (c != '\033') return c;
+	if (!term_have_input()) return c;
+	int c2 = term_getc();
+	if (c2 != '[') {
+		term_ungetc(c2);
+		return c;
+	}
+	int c3 = term_getc();
 	switch (c3) {
 	case 'A':
 		return KEY_UP;
