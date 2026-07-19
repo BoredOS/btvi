@@ -1,5 +1,4 @@
 build
 tconf
 config.mk
-Makefile
 *.out

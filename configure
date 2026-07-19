@@ -47,6 +47,4 @@ tconf_fini
 tconf_echo_conf "SHARED"   "$SHARED" >> config.mk
 tconf_echo_conf "RDYNAMIC" "$RDYNAMIC" >> config.mk
 
-./tmakegen
-
 exit 0
