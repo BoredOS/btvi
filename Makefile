@@ -8,6 +8,6 @@ CFLAGS += -Iinclude
 
 include $(TMAKE_DIR)/tmake-prog.mk
 
-FILES = help.txt
-FILESDIR = /share/tvi
+FILES = help.txt COPYING.txt README.md
+FILESDIR = $(DOCDIR)/tvi
 include $(TMAKE_DIR)/tmake-files.mk

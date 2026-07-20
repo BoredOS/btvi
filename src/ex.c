@@ -101,7 +101,7 @@ static int ex_insert(tvi_t *tvi, ex_args_t *args) {
 
 static int ex_help(tvi_t *tvi, ex_args_t *args) {
 	(void)args;
-	static char *help_path = PREFIX"/share/tvi/help.txt";
+	static char *help_path = PREFIX"/share/doc/tvi/help.txt";
 	win_t *old_win = tvi->focus_window;
 	win_t *win = win_create(tvi);
 	win->width = old_win->width;
