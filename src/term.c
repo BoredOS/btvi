@@ -14,6 +14,7 @@
 #ifdef HAVE_POLL_H
 #include <poll.h>
 #endif
+#include <errno.h>
 #include <tvi.h>
 
 #ifdef HAVE_TERMIOS_H
