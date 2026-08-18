@@ -68,7 +68,12 @@ void term_fetch_size(void) {
 	int old_term_width  = term_width;
 	int old_term_height = term_height;
 #if defined(HAVE_SYS_IOCTL_H) && defined(TIOCGWINSZ) && defined(STDOUT_FILENO)
-	ioctl(STDOUT_FILENO, TIOCGWINSZ, &winsz);
+	if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &winsz) != 0 || winsz.ws_col <= 0 || winsz.ws_row <= 0) {
+		if (ioctl(STDIN_FILENO, TIOCGWINSZ, &winsz) != 0 || winsz.ws_col <= 0 || winsz.ws_row <= 0) {
+			winsz.ws_col = 80;
+			winsz.ws_row = 25;
+		}
+	}
 	term_width = winsz.ws_col;
 	term_height = winsz.ws_row;
 #else
@@ -126,9 +131,10 @@ int term_have_input(void) {
 	struct pollfd fd = {
 		.fd = STDIN_FILENO,
 		.events = POLLIN,
+		.revents = 0,
 	};
-	if (poll(&fd, 1, 0) < 0) return 0;
-	return fd.revents & POLLIN;
+	if (poll(&fd, 1, 50) <= 0) return 0;
+	return (fd.revents & POLLIN) != 0;
 #else
 	return 0;
 #endif
@@ -142,15 +148,14 @@ static int term_getc(void) {
 		unget_char = EOF;
 		return c;
 	}
-#ifdef HAVE_READ
-	static char c;
-	ssize_t ret = read(STDIN_FILENO, &c, sizeof(c));
-	if (ret < 0 && errno == EINTR) return '\0';
-	if (ret < 1) return EOF;
-	return c;
-#else
-	return getchar();
-#endif
+	char c = 0;
+	ssize_t ret;
+	while ((ret = read(STDIN_FILENO, &c, 1)) <= 0) {
+		if (tvi.interrupted) return '\0';
+		if (ret < 0 && errno != EAGAIN && errno != EINTR) return EOF;
+		usleep(5000);
+	}
+	return (unsigned char)c;
 }
 
 static void term_ungetc(int c) {
@@ -187,11 +192,7 @@ int term_get_key(void) {
 }
 
 int term_is_delete(int c) {
-#ifdef HAVE_TERMIOS_H
-	return c == old.c_cc[VERASE];
-#else
-	return c == '\b' || c == 0x7f;
-#endif
+	return c == '\b' || c == 0x7f || c == 127 || c == 8;
 }
 
 int term_enter_fullscreen(void) {
@@ -209,6 +210,7 @@ void term_exit_fullscreen(void) {
 	term_send_code(TERM_CLEAR);
 	printf(ESC"[H");
 	printf(ESC"[?1049l");
+	fflush(stdout);
 }
 
 static int cell_equal(cell_t *a, cell_t *b) {
@@ -241,6 +243,7 @@ static void print_cells(cell_t *cell, int len) {
 }
 
 static void redraw_line(int y) {
+	if (y < 0 || y >= term_height) return;
 	cell_t *old_line = cell(old_buffer, 0, y);
 	cell_t *new_line = cell(new_buffer, 0, y);
 	int diff_start = 0;
@@ -252,82 +255,20 @@ static void redraw_line(int y) {
 	}
 
 	if (diff_start == term_width) {
-		// no diff nothing to redraw
 		return;
 	}
 
-	int new_len = term_width;
-	while (new_len > diff_start+1) {
-		if (new_line[new_len-1].c != ' ') {
-			break;
-		}
-		new_len--;
-	}
-
-	int old_len = term_width;
-	while (old_len > diff_start+1) {
-		if (old_line[old_len-1].c != ' ') {
-			break;
-		}
-		old_len--;
-	}
-
-	int diff_end = new_len;
-	for (int old_diff_end=old_len; old_diff_end > diff_start; old_diff_end--) {
-		if (diff_end <= diff_start + 1) {
-			break;
-		}
-		if (!cell_equal(&old_line[old_diff_end-1], &new_line[diff_end-1])) {
+	int diff_end = term_width;
+	while (diff_end > diff_start) {
+		if (!cell_equal(&old_line[diff_end - 1], &new_line[diff_end - 1])) {
 			break;
 		}
 		diff_end--;
 	}
 
-	int max_len = new_len > old_len ? new_len : old_len;
-
-	int cost_overwrite = max_len - diff_start;
-	int cost_clear     = INT_MAX;
-	if (term_get_code(TERM_CLEAR_END_LINE) && new_len < old_len) {
-		cost_clear = term_get_code_len(TERM_CLEAR_END_LINE) + new_len - diff_start;
-	}
-
-	// check insert/deletion
-	int cost_insert = INT_MAX;
-	int cost_delete = INT_MAX;
-	if (term_get_code(TERM_INSERT) && old_len < new_len && diff_end != new_len) {
-		// maybee insertion
-		cost_insert = term_get_code_len(TERM_INSERT) + diff_end - diff_start;
-	}
-	if (term_get_code(TERM_DELETE) && old_len > new_len && diff_end != new_len) {
-		// maybee deletion
-		cost_delete = term_get_code_len(TERM_DELETE) + diff_end - diff_start;
-	}
-
-	int best_cost = cost_overwrite;
-	if (cost_clear < best_cost) best_cost = cost_clear;
-	if (cost_insert < best_cost) best_cost = cost_insert;
-	if (cost_delete < best_cost) best_cost = cost_delete;
-
 	term_goto(diff_start, y);
-	if (best_cost == cost_overwrite) {
-		print_cells(&new_line[diff_start], max_len - diff_start);
-	} else if (best_cost == cost_clear) {
-		term_send_code(TERM_CLEAR_END_LINE);
-		print_cells(&new_line[diff_start], new_len - diff_start);
-	} else if (best_cost == cost_insert) {
-		term_send_code(TERM_INSERT, new_len - old_len);
-		print_cells(&new_line[diff_start], diff_end - diff_start);
-	} else if (best_cost == cost_delete) {
-		term_send_code(TERM_DELETE, old_len - new_len);
-		print_cells(&new_line[diff_start], diff_end - diff_start);
-	}
+	print_cells(&new_line[diff_start], diff_end - diff_start);
 	memcpy(old_line, new_line, term_width * sizeof(cell_t));
-}
-
-static void redraw_lines(int y, int count) {
-	for (int i=0; i<count; i++) {
-		redraw_line(y + i);
-	}
 }
 
 static int line_equal(cell_t *a, cell_t *b) {
@@ -339,41 +280,10 @@ static int line_equal(cell_t *a, cell_t *b) {
 	return 1;
 }
 
-static void clear_lines(cell_t *lines, size_t count) {
-	for (size_t i=0; i<count*term_width; i++) {
-		lines[i].attr = 0;
-		lines[i].c    = ' ';
-	}
-}
-
 void term_redraw(void) {
-	// TODO : see if we can scroll lines direcly
 	for (int y=0; y<term_height; y++) {
 		if (line_equal(line(old_buffer, y), line(new_buffer, y))) {
 			continue;
-		}
-		for (int i=1; i<5; i++) {
-			if (i + y >= term_height) break;
-			if (term_get_code(TERM_INSERT_LINE) && line_equal(line(old_buffer, y), line(new_buffer, y + i))) {
-				term_goto(0, y);
-				term_send_code(TERM_INSERT_LINE, i);
-				memmove(line(old_buffer, y + i), line(old_buffer, y), (term_height - y - i) * term_width * sizeof(cell_t));
-				clear_lines(line(old_buffer, y), i);
-
-				redraw_lines(y, i);
-				// update buffer
-				y += i - 1;
-				continue;
-			}
-			if (term_get_code(TERM_DELETE_LINE) && line_equal(line(old_buffer, y + i), line(new_buffer, y))) {
-				term_goto(0, y);
-				term_send_code(TERM_DELETE_LINE, i);
-				memmove(line(old_buffer, y), line(old_buffer, y + i), (term_height - y - i) * term_width * sizeof(cell_t));
-				clear_lines(line(old_buffer, term_height - i), i);
-
-				// update buffer
-				continue;
-			}
 		}
 		redraw_line(y);
 	}
@@ -387,7 +297,7 @@ void term_vprint_bound_at(bound_t *bound, int x, int y, int attr, const char *fm
 
 	if (bound) {
 		x += bound->x;
-		x += bound->y;
+		y += bound->y;
 	}
 	for (int i=0; i<len; i++) {
 		switch (buf[i]) {
@@ -403,9 +313,12 @@ void term_vprint_bound_at(bound_t *bound, int x, int y, int attr, const char *fm
 			x = bound ? bound->x : 0;
 			y++;
 		}
-		cell_t *cell = cell(new_buffer, x, y);
-		cell->c = buf[i];
-		cell->attr = attr;
+		if (y >= term_height) break;
+		if (x < term_width && y < term_height) {
+			cell_t *cell = cell(new_buffer, x, y);
+			cell->c = buf[i];
+			cell->attr = attr;
+		}
 		x++;
 	}
 }
@@ -440,8 +353,7 @@ void term_goto(int x, int y) {
 }
 
 void term_bell(void) {
-	putchar('\a');
-	fflush(stdout);
+	// No-op to avoid printing unhandled ASCII 7 to TTY
 }
 
 void term_reset_color(void) {

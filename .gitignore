@@ -2,3 +2,6 @@ build
 tconf
 config.mk
 *.out
+*.elf
+obj
+.DS_Store

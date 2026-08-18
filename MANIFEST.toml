@@ -1,0 +1,9 @@
+name = "btvi"
+version = "1.0.0"
+description = "Lightweight modal text editor for BoredOS"
+author = "Christiaan"
+license = "MIT"
+
+[install]
+bin = "/bin"
+assets = "/usr/share/doc/tvi"

@@ -81,6 +81,10 @@ exit_prompt:
 			continue;
 		}
 		
+		if ((c < 32 && c != '\n') || c >= 128) {
+			continue;
+		}
+
 		// insert the char
 		memmove(&tvi->prompt[tvi->prompt_cursor+1], &tvi->prompt[tvi->prompt_cursor], tvi->prompt_len - tvi->prompt_cursor);
 		tvi->prompt[tvi->prompt_cursor++] = c;
@@ -152,7 +156,6 @@ int insert_mode(tvi_t *tvi) {
 		if (term_is_delete(c)) {
 			if (win->cursor_x == 0) {
 				if (win->cursor_y <= 0) {
-					term_bell();
 					continue;
 				}
 				win->cursor_x = strlen(win->text[win->cursor_y-1]);
@@ -163,9 +166,17 @@ int insert_mode(tvi_t *tvi) {
 				render_flush(tvi);
 				continue;
 			}
-			win->cursor_x--;
-			text_delete(win, win->cursor_x, win->cursor_y, 1);
-			goto redraw;
+			if (win->cursor_x > 0) {
+				win->cursor_x--;
+				text_delete(win, win->cursor_x, win->cursor_y, 1);
+			}
+			render_window(tvi, win);
+			render_status(tvi, win);
+			render_flush(tvi);
+			continue;
+		}
+		if (c >= 21 && c <= 25 && c != CRTL('V')) {
+			continue;
 		}
 		switch (c){
 		case '\0':
@@ -228,10 +239,12 @@ int insert_mode(tvi_t *tvi) {
 			render_flush(tvi);
 			continue;
 		}
+		if ((c < 32 && c != '\t') || c >= 128) {
+			continue;
+		}
 		char buf = (unsigned char)c;
 		text_insert_buf(win, win->cursor_x, win->cursor_y, &buf, 1);
 		win->cursor_x++;
-redraw:
 		render_window(tvi, win);
 		render_status(tvi, win);
 		render_flush(tvi);
@@ -379,7 +392,7 @@ int tvi_main(tvi_t *tvi) {
 			tvi->flags |= FLAG_QUIT;
 			continue;
 		}
-		if (!c) continue;
+		if (!c || (c >= 21 && c <= 25) || c >= 128) continue;
 		int count = 0;
 
 		if (isdigit(c) && c != '0') {
